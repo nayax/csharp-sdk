@@ -12,8 +12,8 @@ namespace NayaxAPI
 
         private const string STATUS_SUCCESS = "SUCCESS";
         private const string STATUS_ERROR = "ERROR";
-        private readonly string HASH_CODE;
 
+        private readonly string HASH_CODE;
         private readonly string MERCHANT_ID;
 
         public NayaxAdapter(string merchantId, string hashCode)
