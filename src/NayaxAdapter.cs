@@ -10,8 +10,11 @@ namespace NayaxAPI
     {
         private const string API_URL = "https://uiservices.ecom.nayax.com/hosted/";
 
-        private readonly string MERCHANT_ID;
+        private const string STATUS_SUCCESS = "SUCCESS";
+        private const string STATUS_ERROR = "ERROR";
         private readonly string HASH_CODE;
+
+        private readonly string MERCHANT_ID;
 
         public NayaxAdapter(string merchantId, string hashCode)
         {
@@ -41,7 +44,7 @@ namespace NayaxAPI
 
         private string CreateSignature(IReadOnlyDictionary<string, string> transaction)
         {
-            StringBuilder signatureString = new StringBuilder();
+            var signatureString = new StringBuilder();
             signatureString.Append(transaction["merchantID"]);
             signatureString.Append(transaction["trans_refNum"]);
             signatureString.Append(transaction["trans_installments"]);
@@ -53,13 +56,12 @@ namespace NayaxAPI
             signatureString.Append(transaction["url_redirect"]);
             signatureString.Append(HASH_CODE);
 
-            Console.WriteLine(signatureString.ToString());
             return GenerateSha256(signatureString.ToString());
         }
 
         private string GetRedirectUrl(IReadOnlyDictionary<string, string> transaction)
         {
-            StringBuilder redirectUrl = new StringBuilder();
+            var redirectUrl = new StringBuilder();
 
             redirectUrl.Append(API_URL);
             redirectUrl.Append("?merchantID=" + MERCHANT_ID);
@@ -82,6 +84,49 @@ namespace NayaxAPI
             var sh = SHA256.Create();
             var hashValue = sh.ComputeHash(Encoding.UTF8.GetBytes(value));
             return Convert.ToBase64String(hashValue);
+        }
+
+        public Dictionary<string, string> handleNotification(IReadOnlyDictionary<string, string> notification)
+        {
+            var description = "";
+            var code = "";
+            var originalTransactionId = "";
+
+            if (notification.ContainsKey("replyDesc"))
+                description = notification["replyDesc"];
+            else
+                description = notification["ReplyDesc"];
+
+            if (notification.ContainsKey("replyCode"))
+                code = notification["replyCode"];
+            else
+                code = notification["Reply"];
+
+            if (notification.ContainsKey("trans_refNum"))
+                originalTransactionId = notification["trans_refNum"];
+            else
+                originalTransactionId = notification["Order"];
+
+            var innerTransactionId = notification["trans_id"];
+            var transactionAmount = notification["trans_amount"];
+            var transactionCurrency = notification["trans_currency"];
+
+            var notificationDetails = new Dictionary<string, string>
+            {
+                {"description", description},
+                {"originalOrderId", originalTransactionId},
+                {"internalTransactionId", innerTransactionId},
+                {"amount", transactionAmount},
+                {"currency", transactionCurrency},
+                {"notification", notification.ToString()}
+            };
+
+            if (code == "000" || code == "000.000.000")
+                notificationDetails["status"] = STATUS_SUCCESS;
+            else
+                notificationDetails["status"] = STATUS_ERROR;
+
+            return notificationDetails;
         }
     }
 }
